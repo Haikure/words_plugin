@@ -62,7 +62,7 @@ Rectangle {
         sourceComponent: {
             var m = wordController ? wordController.sessionMode : 0;
             if (m === 1) return studyComp;
-            if (m === 2 || m === 3) return reviewComp;
+            if (m === 2 || m === 3 || m === 5) return reviewComp;
             if (m === 4) return summaryComp;
             return root.internalPage === "dictSelect" ? dictComp : homeComp;
         }

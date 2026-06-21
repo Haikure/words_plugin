@@ -27,7 +27,7 @@ namespace word {
 class WordController : public QObject {
     Q_OBJECT
 
-    // —— 会话模式：0空闲 / 1学习 / 2复习 / 3轮次巩固 / 4总结 ——
+    // —— 会话模式：0空闲 / 1学习 / 2复习 / 3轮次巩固 / 4总结 / 5随机复习 ——
     Q_PROPERTY(int sessionMode READ sessionMode NOTIFY sessionModeChanged)
 
     // —— 当前词库 ——

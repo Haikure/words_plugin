@@ -83,7 +83,7 @@ Flickable {
         TopBar {
             theme: root.theme
             width: parent.width
-            title: q.isConsolidate ? "巩固" : "复习"
+            title: q.isConsolidate ? "巩固" : (q.isRandomReview ? "随机复习" : "复习")
             rightText: (q.index ? q.index : 0) + " / " + (q.total ? q.total : 0)
             onBack: root.back()
         }

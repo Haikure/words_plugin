@@ -147,7 +147,8 @@ Flickable {
             PillButton {
                 theme: root.theme
                 width: (parent.width - 6) / 2
-                text: "开始复习"
+                text: root.dueCount > 0 ? "开始复习"
+                      : (root.learnedCount > 0 ? "随机复习" : "开始复习")
                 onClicked: root.requestReview()
             }
         }

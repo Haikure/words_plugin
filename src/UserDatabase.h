@@ -35,7 +35,7 @@ struct WordState {
 
 // 会话断点（session_state 单行）
 struct SessionSnapshot {
-    int     mode = 0;          // 0无 / 1学习 / 2复习 / 3轮次巩固
+    int     mode = 0;          // 0无 / 1学习 / 2复习 / 3轮次巩固 / 5随机复习
     QString dictId;
     QString queueJson;         // 队列与进度的 JSON
     int     cursor = 0;

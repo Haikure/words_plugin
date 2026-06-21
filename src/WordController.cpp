@@ -12,7 +12,7 @@
 namespace word {
 
 // 会话模式常量
-enum Mode { ModeIdle = 0, ModeStudy = 1, ModeReview = 2, ModeConsolidate = 3, ModeSummary = 4 };
+enum Mode { ModeIdle = 0, ModeStudy = 1, ModeReview = 2, ModeConsolidate = 3, ModeSummary = 4, ModeRandomReview = 5 };
 
 // 把 ECDICT 字面 "\n" 转为真换行
 static QString norm(const QString& s) {
@@ -266,16 +266,22 @@ bool WordController::startReview() {
 
     // 优先承接上次学习后尚未完成首次复习的新词。
     QVector<int> pool = m_user.pendingFirstReviewIds(dictId);
-    // 其次取已到期的复习词；没有到期词时不随机抽未到期词。
+    // 其次取已到期的复习词。
     if (pool.isEmpty())
         pool = m_user.reviewPoolIds(dictId, /*onlyDue*/ true, now);
+    // 没有待复习词时，允许从已学词里随机抽一批做自由复习；自由复习不写入长期复习统计。
+    bool randomReview = false;
+    if (pool.isEmpty()) {
+        pool = m_user.learnedIds(dictId);
+        randomReview = true;
+    }
     if (pool.isEmpty()) return false;
 
     shuffle(pool);
     if (pool.size() > m_batchSize) pool.resize(m_batchSize);
 
     m_review.start(pool);
-    setSessionMode(ModeReview);
+    setSessionMode(randomReview ? ModeRandomReview : ModeReview);
     refreshReviewQuestion();
     persistSession();
     return true;
@@ -318,12 +324,13 @@ void WordController::refreshReviewQuestion() {
     q[QStringLiteral("index")]          = m_review.displayIndex();
     q[QStringLiteral("total")]          = m_review.totalCount();
     q[QStringLiteral("isConsolidate")]  = (m_sessionMode == ModeConsolidate);
+    q[QStringLiteral("isRandomReview")] = (m_sessionMode == ModeRandomReview);
     m_currentQuestion = q;
     emit currentQuestionChanged();
 }
 
 bool WordController::answerReview(int optionIndex) {
-    if (m_sessionMode != ModeReview && m_sessionMode != ModeConsolidate)
+    if (m_sessionMode != ModeReview && m_sessionMode != ModeConsolidate && m_sessionMode != ModeRandomReview)
         return false;
 
     const int id = m_review.currentWordId();
@@ -341,12 +348,12 @@ bool WordController::answerReview(int optionIndex) {
 
     m_review.submitAnswer(correct);  // 前进队列 + 当前会话内纠错重排
     persistSession();
-    emit statsChanged();
+    if (m_sessionMode != ModeRandomReview) emit statsChanged();
     return correct;
 }
 
 void WordController::advanceReview() {
-    if (m_sessionMode != ModeReview && m_sessionMode != ModeConsolidate)
+    if (m_sessionMode != ModeReview && m_sessionMode != ModeConsolidate && m_sessionMode != ModeRandomReview)
         return;
     if (m_review.isFinished())
         finishReview();
@@ -356,6 +363,7 @@ void WordController::advanceReview() {
 
 void WordController::finishReview() {
     const bool wasConsolidate = (m_sessionMode == ModeConsolidate);
+    const bool wasRandomReview = (m_sessionMode == ModeRandomReview);
     const int total = m_review.totalCount();
     const int correct = m_review.correctCount();
     const int wrong = m_review.wrongCount();
@@ -368,7 +376,8 @@ void WordController::finishReview() {
     summary[QStringLiteral("kind")] = wasConsolidate ? QStringLiteral("study")
                                                      : QStringLiteral("review");
     summary[QStringLiteral("title")] = wasConsolidate ? QStringLiteral("本轮完成")
-                                                      : QStringLiteral("复习完成");
+                                      : (wasRandomReview ? QStringLiteral("随机复习完成")
+                                                         : QStringLiteral("复习完成"));
     summary[QStringLiteral("total")] = total;
     summary[QStringLiteral("correct")] = correct;
     summary[QStringLiteral("wrong")] = wrong;
@@ -405,7 +414,7 @@ void WordController::persistSession() {
     snap.updatedAt = nowSecs();
     if (m_sessionMode == ModeStudy)
         snap.queueJson = m_study.toJson();
-    else if (m_sessionMode == ModeReview || m_sessionMode == ModeConsolidate)
+    else if (m_sessionMode == ModeReview || m_sessionMode == ModeConsolidate || m_sessionMode == ModeRandomReview)
         snap.queueJson = m_review.toJson();
     else
         return;  // 空闲不写
@@ -448,7 +457,7 @@ void WordController::resumeSession() {
         }
         setSessionMode(ModeStudy);
         refreshStudyCard();
-    } else if (snap.mode == ModeReview || snap.mode == ModeConsolidate) {
+    } else if (snap.mode == ModeReview || snap.mode == ModeConsolidate || snap.mode == ModeRandomReview) {
         if (!m_review.fromJson(snap.queueJson)) {
             discardBrokenSession();
             return;
