@@ -1,7 +1,7 @@
 {
   "id": "words_plugin",
   "name": "背单词",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Codex",
   "description": "支持自定义词库的单词记忆插件。",
   "icon": "file://userdisk/PenMods/plugins/words_plugin/icon.png",
