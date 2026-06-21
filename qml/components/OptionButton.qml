@@ -6,12 +6,13 @@ Rectangle {
     id: root
     property var theme
     property string text: ""
-    property bool revealed: false
-    property bool selected: false
-    property bool correct: false
-    readonly property bool selectedCorrect: revealed && selected && correct
-    readonly property bool wrong: revealed && selected && !correct
-    readonly property bool dimmed: revealed && !selectedCorrect && !wrong
+    // 标绿=本题点中的正确项；标红=被点错的项（可多个）；变暗=点对后其余未选项。
+    property bool markedCorrect: false
+    property bool markedWrong: false
+    property bool faded: false
+    readonly property bool selectedCorrect: markedCorrect
+    readonly property bool wrong: markedWrong
+    readonly property bool dimmed: faded && !markedCorrect && !markedWrong
     signal clicked()
 
     implicitHeight: Math.max(32, optionText.paintedHeight + 14)

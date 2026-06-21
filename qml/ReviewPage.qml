@@ -1,21 +1,26 @@
 import QtQuick 2.12
 import "components"
 
-// 复习页：题干 + 四选一，答后即时反馈并自动进入下一题。
+// 复习页：题干 + 四选一，点错标红留在本题，点对后自动进入下一题。
 Flickable {
     id: root
     property var theme
     signal back()
 
     readonly property var q: wordController ? wordController.currentQuestion : ({})
-    readonly property bool answeredCorrect: answered >= 0 && answered === q.answerIndex
-    property int answered: -1
+    // 一题可多次作答：点错标红并保留题目，直到点中正确项才进入下一题。
+    property int firstPick: -1    // 首次作答项：仅此一次交给后端结算复习调度
+    property var wrongPicks: []   // 已点错的项索引（标红，可多个）
+    property int correctPick: -1  // 点中正确项的索引；>=0 表示本题完成
+    readonly property bool resolved: correctPick >= 0
 
     Connections {
         target: wordController
         ignoreUnknownSignals: true
         function onCurrentQuestionChanged() {
-            root.answered = -1;
+            root.firstPick = -1;
+            root.wrongPicks = [];
+            root.correctPick = -1;
             feedbackTimer.stop();
             scrollTopAnim.stop();
             scrollTopAnim.from = root.contentY;
@@ -39,10 +44,28 @@ Flickable {
     }
 
     function choose(idx) {
-        if (root.answered >= 0) return;
-        root.answered = idx;
-        if (wordController) wordController.answerReview(idx);
-        feedbackTimer.start();
+        if (root.correctPick >= 0) return;             // 已点对，本题锁定
+        if (root.wrongPicks.indexOf(idx) >= 0) return; // 该项已标红，忽略重复点击
+
+        var correct;
+        if (root.firstPick < 0) {
+            // 首次作答：交给后端结算长期复习状态与计数，并以其判定为准。
+            root.firstPick = idx;
+            correct = wordController ? wordController.answerReview(idx)
+                                     : (idx === root.q.answerIndex);
+        } else {
+            // 后续作答：本题已结算，仅在前端判断对错，引导用户点到对为止。
+            correct = (idx === root.q.answerIndex);
+        }
+
+        if (correct) {
+            root.correctPick = idx;
+            feedbackTimer.start();      // 展示正确反馈后进入下一题
+        } else {
+            var arr = root.wrongPicks.slice();
+            arr.push(idx);
+            root.wrongPicks = arr;      // 重新赋值以触发选项重新着色
+        }
     }
 
     contentWidth: width
@@ -127,10 +150,10 @@ Flickable {
                     width: parent.width
                     height: implicitHeight
                     text: modelData
-                    enabled: root.answered < 0
-                    revealed: root.answered >= 0
-                    selected: index === root.answered
-                    correct: index === q.answerIndex
+                    enabled: !root.resolved && root.wrongPicks.indexOf(index) < 0
+                    markedCorrect: index === root.correctPick
+                    markedWrong: root.wrongPicks.indexOf(index) >= 0
+                    faded: root.resolved
                     onClicked: root.choose(index)
                 }
             }
@@ -138,9 +161,9 @@ Flickable {
 
         Text {
             width: parent.width
-            visible: root.answered >= 0
-            text: root.answeredCorrect ? "答对了，继续保持节奏。" : "答错了，再试一次。"
-            color: root.answeredCorrect
+            visible: root.firstPick >= 0
+            text: root.resolved ? "答对了，继续保持节奏。" : "答错了，再试一次。"
+            color: root.resolved
                    ? (theme ? theme.success : "#8CD879")
                    : (theme ? theme.danger : "#FF7A7A")
             font.family: theme ? theme.fontFamily : "sans-serif"
