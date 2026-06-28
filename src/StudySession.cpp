@@ -3,6 +3,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRandomGenerator>
 #include <QtGlobal>
 
 namespace word {
@@ -103,23 +104,65 @@ void StudySession::submitRating(StudyRating rating) {
     if (current.reinforceLevel > 0 && m_pendingReinforce > 0)
         --m_pendingReinforce;
 
-    const int originalRemaining = m_queue.size() - m_cursor - 1;
-    int inserted = 0;
-    auto insertReinforce = [&](int minGap, int level) {
-        if (m_queue.size() >= kMaxStudyQueueLen) return;
-        if (originalRemaining < minGap) return;
-        const int pos = qMin(m_cursor + 1 + minGap + inserted, m_queue.size());
-        m_queue.insert(pos, {current.wordId, false, level});
-        ++m_pendingReinforce;
-        ++inserted;
-    };
-
     if (rating == StudyRating::Unknown) {
-        insertReinforce(2, 2);
-        insertReinforce(5, 1);
+        insertDelayedReinforce(current.wordId, 3, 6, 3, 2);
+        insertDelayedReinforce(current.wordId, 6, 12, 4, 1);
     }
 
     ++m_cursor;
+}
+
+void StudySession::insertDelayedReinforce(int wordId, int minGap, int maxGap, int minSameWordGap, int level) {
+    if (m_queue.size() >= kMaxStudyQueueLen) return;
+
+    const int afterCurrent = m_cursor + 1;
+    if (afterCurrent >= m_queue.size()) return;
+
+    if (maxGap < minGap) maxGap = minGap;
+    const int lower = qMin(afterCurrent + minGap, m_queue.size());
+    const int upper = qMin(afterCurrent + maxGap, m_queue.size());
+
+    QVector<int> positions;
+    for (int pos = lower; pos <= upper; ++pos) {
+        if (canInsertReinforceAt(wordId, pos, minSameWordGap, true))
+            positions.append(pos);
+    }
+
+    if (positions.isEmpty()) {
+        for (int pos = lower; pos <= upper; ++pos) {
+            if (canInsertReinforceAt(wordId, pos, minSameWordGap, false))
+                positions.append(pos);
+        }
+    }
+
+    int pos = -1;
+    if (!positions.isEmpty()) {
+        pos = positions[QRandomGenerator::global()->bounded(positions.size())];
+    } else if (m_queue.size() > afterCurrent &&
+               canInsertReinforceAt(wordId, m_queue.size(), minSameWordGap, false)) {
+        pos = m_queue.size();
+    }
+
+    if (pos < 0) return;
+    m_queue.insert(pos, {wordId, false, level});
+    ++m_pendingReinforce;
+}
+
+bool StudySession::canInsertReinforceAt(int wordId, int pos, int minSameWordGap, bool avoidReinforceNeighbor) const {
+    if (pos <= m_cursor || pos > m_queue.size()) return false;
+
+    for (int i = m_cursor; i < m_queue.size(); ++i) {
+        if (m_queue[i].wordId != wordId) continue;
+        const int distance = (i < pos) ? (pos - i) : (i + 1 - pos);
+        if (distance <= minSameWordGap) return false;
+    }
+
+    if (avoidReinforceNeighbor) {
+        if (pos > m_cursor + 1 && !m_queue[pos - 1].counted) return false;
+        if (pos < m_queue.size() && !m_queue[pos].counted) return false;
+    }
+
+    return true;
 }
 
 int StudySession::learnedIndex() const {

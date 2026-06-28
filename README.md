@@ -97,10 +97,13 @@ python3 tools/make_dict.py input.csv dicts/mybook.db --name "我的词库"
 
 # 仅指定考试标签（如六级）
 python3 tools/make_dict.py ecdict.csv dicts/cet6.db --name "六级" --tag-filter cet6
+
+# 四级及以上，排除同时带中考/高考等更低标签的词条
+python3 tools/make_dict.py ecdict.csv dicts/cet4_plus.db --name "四级及以上" --tag-filter cet4 --strict-level-filter
 ```
 
 ECDICT 常见标签：`zk` 中考 · `gk` 高考 · `cet4` 四级 · `cet6` 六级 · `ky` 考研 ·
-`toefl` · `ielts` · `gre`。
+`toefl` · `ielts` · `gre`。`--strict-level-filter` 仍要求命中 `--tag-filter`，并按这个顺序排除带有更低考试标签的词。
 
 ### 生成自定义转换脚本
 
