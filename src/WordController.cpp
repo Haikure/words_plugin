@@ -179,16 +179,13 @@ bool WordController::startStudy() {
     QSet<int> learnedSet;
     for (int id : learnedVec) learnedSet.insert(id);
 
-    // 学习阶段仍以高频优先，仅在前部候选中做轻度随机，避免完全打散词频。
+    // 从所有未学词中随机抽取本轮新词，避免每次都偏向词频排序靠前的词。
     const QVector<int> all = m_dict.allWordIdsByFreq();
-    QVector<int> candidates;
+    QVector<int> picks;
     for (int id : all) {
-        if (!learnedSet.contains(id)) candidates.append(id);
+        if (!learnedSet.contains(id)) picks.append(id);
     }
 
-    const int window = qMin(candidates.size(), qMax(m_batchSize * 3, m_batchSize));
-    QVector<int> picks;
-    for (int i = 0; i < window; ++i) picks.append(candidates[i]);
     shuffle(picks);
     if (picks.size() > m_batchSize) picks.resize(m_batchSize);
     if (picks.isEmpty()) return false;  // 没有新词可学

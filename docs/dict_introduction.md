@@ -157,7 +157,10 @@ python3 tools/make_dict.py input.csv output.db --name "词库名"
 
 # 仅保留指定考试标签（如高考+四级）
 python3 tools/make_dict.py ecdict.csv gk_cet4.db --name "高考四级" --tag-filter gk cet4
+
+# 四级及以上，排除同时带中考/高考等更低标签的词条
+python3 tools/make_dict.py ecdict.csv cet4_plus.db --name "四级及以上" --tag-filter cet4 --strict-level-filter
 ```
 
 常见考试标签：`zk`(中考) `gk`(高考) `cet4`(四级) `cet6`(六级)
-`ky`(考研) `toefl` `ielts` `gre`。
+`ky`(考研) `toefl` `ielts` `gre`。`--strict-level-filter` 仍要求命中 `--tag-filter`，并按这个顺序排除带有更低考试标签的词。

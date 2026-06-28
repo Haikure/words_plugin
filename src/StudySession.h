@@ -60,6 +60,9 @@ private:
         int reinforceLevel = 0;
     };
 
+    void insertDelayedReinforce(int wordId, int minGap, int maxGap, int minSameWordGap, int level);
+    bool canInsertReinforceAt(int wordId, int pos, int minSameWordGap, bool avoidReinforceNeighbor) const;
+
     QVector<Item> m_queue;
     int           m_cursor = 0;
     int           m_totalNew = 0;

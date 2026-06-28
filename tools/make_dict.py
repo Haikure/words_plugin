@@ -14,6 +14,9 @@ ECDICT CSV 表头（13 字段）：
 
     # 只挑选带 gk 或 cet4 标签的词条
     python3 make_dict.py ecdict.csv gk_cet4.db --name "高考四级" --tag-filter gk cet4
+
+    # 按考试等级过滤：四级及以上，并排除同时带中考/高考等更低标签的词条
+    python3 make_dict.py ecdict.csv cet4_plus.db --name "四级及以上" --tag-filter cet4 --strict-level-filter
 """
 
 import argparse
@@ -53,6 +56,10 @@ COLUMNS = ["word", "phonetic", "definition", "translation", "pos",
            "collins", "oxford", "tag", "bnc", "frq", "exchange",
            "detail", "audio"]
 
+# 常见考试标签从低到高的等级顺序；--strict-level-filter 依赖这个顺序判断「及以上」。
+EXAM_TAG_ORDER = ["zk", "gk", "cet4", "cet6", "ky", "toefl", "ielts", "gre"]
+EXAM_TAG_LEVEL = {tag: level for level, tag in enumerate(EXAM_TAG_ORDER)}
+
 
 def to_int(value):
     """把 collins/oxford/bnc/frq 这类字段安全转成 int，空值/异常一律返回 0。"""
@@ -67,12 +74,30 @@ def to_int(value):
         return 0
 
 
-def matches_tag(tag_field, tag_filter):
-    """判断该词条的 tag 字段（空格分隔的标签集合）是否命中过滤集合。"""
+def matches_tag(tag_field, tag_filter, strict_level_filter=False):
+    """判断该词条的 tag 字段（空格分隔的标签集合）是否命中过滤规则。"""
     if not tag_filter:
         return True
+
     tags = set(tag_field.split())
-    return any(t in tags for t in tag_filter)
+    if not strict_level_filter:
+        return any(t in tags for t in tag_filter)
+
+    filter_levels = [EXAM_TAG_LEVEL[t] for t in tag_filter if t in EXAM_TAG_LEVEL]
+    if not filter_levels:
+        return False
+
+    # 严格模式仍然要求命中 --tag-filter；它只额外排除带有更低考试标签的词。
+    # 例如 --tag-filter cet4 会保留 cet4/cet4 cet6，排除 zk cet4/gk cet4/cet6/ielts。
+    if not any(t in tags for t in tag_filter):
+        return False
+
+    min_level = min(filter_levels)
+    known_levels = [EXAM_TAG_LEVEL[t] for t in tags if t in EXAM_TAG_LEVEL]
+    if not known_levels:
+        return False
+
+    return min(known_levels) >= min_level
 
 
 def main():
@@ -85,7 +110,16 @@ def main():
     parser.add_argument("--version", default="1.0.0", help="词库版本号")
     parser.add_argument("--tag-filter", nargs="*", default=None,
                         help="只保留 tag 含有这些标签之一的词条，如：gk cet4")
+    parser.add_argument("--strict-level-filter", action="store_true",
+                        help="仍按 --tag-filter 命中标签，并额外排除含有更低考试标签的词条")
     args = parser.parse_args()
+
+    if args.strict_level_filter:
+        if not args.tag_filter:
+            parser.error("--strict-level-filter 需要同时指定 --tag-filter")
+        if not any(tag in EXAM_TAG_LEVEL for tag in args.tag_filter):
+            parser.error("--strict-level-filter 需要 --tag-filter 至少包含一个已知考试标签：" +
+                         " ".join(EXAM_TAG_ORDER))
 
     if not os.path.isfile(args.input_csv):
         print("错误：找不到输入文件 %s" % args.input_csv, file=sys.stderr)
@@ -129,7 +163,8 @@ def main():
                 word = cell(row, "word").strip()
                 if not word:
                     continue
-                if not matches_tag(cell(row, "tag"), args.tag_filter):
+                if not matches_tag(cell(row, "tag"), args.tag_filter,
+                                   args.strict_level_filter):
                     continue
 
                 rows.append((

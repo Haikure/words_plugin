@@ -5,7 +5,7 @@
 //
 // 行为：
 //   * 计数项 = 本次要复习的词；看英文选中文 / 看中文选英文 随机混合
-//   * 答错 → 在当前会话内做短距离纠错重现（不计数）
+//   * 答错 → 在当前会话内做延迟随机纠错重现（不计数）
 //   * 仅计数题写回长期复习状态：艾宾浩斯 1/2/4/7/15/30 天，
 //     连对≥3 清除高错标记，答错回退间隔
 //
@@ -37,7 +37,7 @@ public:
     bool currentIsCounted() const;  // 当前项是否计数（false=纠错重现）
     bool askEnToCn() const;         // 当前题目方向：true=看英文选中文
 
-    // 提交答案后推进队列；correct=false 时插回短距离纠错题。
+    // 提交答案后推进队列；correct=false 时插回延迟纠错题。
     void submitAnswer(bool correct);
 
     int answeredCount() const;      // 已完成的计数项数
@@ -51,6 +51,10 @@ public:
 
 private:
     struct Item { int wordId; bool counted; };
+
+    void insertDelayedRetry(int wordId, int minGap, int maxGap, int minSameWordGap);
+    bool hasPendingRetryForWord(int wordId) const;
+    bool canInsertRetryAt(int wordId, int pos, int minSameWordGap, bool avoidRetryNeighbor) const;
 
     QVector<Item>      m_queue;
     int                m_cursor = 0;

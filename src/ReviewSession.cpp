@@ -125,14 +125,73 @@ void ReviewSession::submitAnswer(bool correct) {
 
     if (!correct) {
         const int cnt = ++m_sessionError[id];
-        // 错题在当前题后短距离重现，优先做即时纠错。
-        const int repeats = (cnt == 1) ? 2 : 1;
-        for (int i = 0; i < repeats && m_queue.size() < kMaxQueueLen; ++i) {
-            const int pos = qMin(m_cursor + 1 + i, m_queue.size());
-            m_queue.insert(pos, {id, false}); // 重现项不计数
+        if (!hasPendingRetryForWord(id)) {
+            const int minGap = (cnt == 1) ? 3 : 5;
+            const int maxGap = (cnt == 1) ? 8 : 12;
+            insertDelayedRetry(id, minGap, maxGap, 3);
         }
     }
     ++m_cursor;
+}
+
+void ReviewSession::insertDelayedRetry(int wordId, int minGap, int maxGap, int minSameWordGap) {
+    if (m_queue.size() >= kMaxQueueLen) return;
+
+    const int afterCurrent = m_cursor + 1;
+    if (afterCurrent >= m_queue.size()) return;
+
+    if (maxGap < minGap) maxGap = minGap;
+    const int lower = qMin(afterCurrent + minGap, m_queue.size());
+    const int upper = qMin(afterCurrent + maxGap, m_queue.size());
+
+    QVector<int> positions;
+    for (int pos = lower; pos <= upper; ++pos) {
+        if (canInsertRetryAt(wordId, pos, minSameWordGap, true))
+            positions.append(pos);
+    }
+
+    if (positions.isEmpty()) {
+        for (int pos = lower; pos <= upper; ++pos) {
+            if (canInsertRetryAt(wordId, pos, minSameWordGap, false))
+                positions.append(pos);
+        }
+    }
+
+    int pos = -1;
+    if (!positions.isEmpty()) {
+        pos = positions[QRandomGenerator::global()->bounded(positions.size())];
+    } else if (m_queue.size() > afterCurrent &&
+               canInsertRetryAt(wordId, m_queue.size(), minSameWordGap, false)) {
+        pos = m_queue.size();
+    }
+
+    if (pos >= 0)
+        m_queue.insert(pos, {wordId, false});
+}
+
+bool ReviewSession::hasPendingRetryForWord(int wordId) const {
+    for (int i = m_cursor + 1; i < m_queue.size(); ++i) {
+        if (m_queue[i].wordId == wordId && !m_queue[i].counted)
+            return true;
+    }
+    return false;
+}
+
+bool ReviewSession::canInsertRetryAt(int wordId, int pos, int minSameWordGap, bool avoidRetryNeighbor) const {
+    if (pos <= m_cursor || pos > m_queue.size()) return false;
+
+    for (int i = m_cursor; i < m_queue.size(); ++i) {
+        if (m_queue[i].wordId != wordId) continue;
+        const int distance = (i < pos) ? (pos - i) : (i + 1 - pos);
+        if (distance <= minSameWordGap) return false;
+    }
+
+    if (avoidRetryNeighbor) {
+        if (pos > m_cursor + 1 && !m_queue[pos - 1].counted) return false;
+        if (pos < m_queue.size() && !m_queue[pos].counted) return false;
+    }
+
+    return true;
 }
 
 int ReviewSession::answeredCount() const {
