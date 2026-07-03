@@ -3,3 +3,5 @@ build
 AGENTS.md
 words_plugin.zip
 words_plugin
+__pycache__/
+*.py[cod]

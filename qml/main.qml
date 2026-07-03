@@ -11,8 +11,8 @@ Rectangle {
     radius: 8
     clip: true
     gradient: Gradient {
-        GradientStop { position: 0.0; color: theme.bgAlt }
-        GradientStop { position: 0.54; color: theme.bg }
+        GradientStop { position: 0.0; color: appTheme.bgAlt }
+        GradientStop { position: 0.54; color: appTheme.bg }
         GradientStop { position: 1.0; color: "#070A0F" }
     }
 
@@ -20,7 +20,7 @@ Rectangle {
     property string pluginName: ""
 
     // 主题
-    Theme { id: theme }
+    Theme { id: appTheme }
 
     Rectangle {
         width: parent.width + 80
@@ -28,7 +28,7 @@ Rectangle {
         x: -34
         y: -12
         rotation: -8
-        color: theme.accentSoft
+        color: appTheme.accentSoft
         opacity: 0.34
     }
 
@@ -38,7 +38,7 @@ Rectangle {
         x: -20
         y: parent.height - 25
         rotation: 6
-        color: theme.accentAltSoft
+        color: appTheme.accentAltSoft
         opacity: 0.24
     }
 
@@ -71,7 +71,7 @@ Rectangle {
     Component {
         id: homeComp
         HomePage {
-            theme: theme
+            theme: appTheme
             onRequestStudy: {
                 if (wordController && !wordController.startStudy())
                     root.toast("没有新词可学啦，去复习吧");
@@ -87,28 +87,28 @@ Rectangle {
     Component {
         id: dictComp
         DictSelectPage {
-            theme: theme
+            theme: appTheme
             onBack: root.internalPage = "home"
         }
     }
     Component {
         id: studyComp
         StudyPage {
-            theme: theme
+            theme: appTheme
             onBack: if (wordController) wordController.goHome()
         }
     }
     Component {
         id: reviewComp
         ReviewPage {
-            theme: theme
+            theme: appTheme
             onBack: if (wordController) wordController.goHome()
         }
     }
     Component {
         id: summaryComp
         SummaryPage {
-            theme: theme
+            theme: appTheme
             onDone: if (wordController) wordController.goHome()
         }
     }
@@ -131,9 +131,9 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 16
         radius: 6
-        color: theme.surfaceRaised
+        color: appTheme.surfaceRaised
         border.width: 1
-        border.color: theme.border
+        border.color: appTheme.border
         opacity: 0
         width: toastText.width + 24
         height: toastText.height + 14
@@ -141,8 +141,8 @@ Rectangle {
         Text {
             id: toastText
             anchors.centerIn: parent
-            color: theme.textPrimary
-            font.family: theme.fontFamily
+            color: appTheme.textPrimary
+            font.family: appTheme.fontFamily
             font.pixelSize: 12
         }
         Timer { id: toastTimer; interval: 1600; onTriggered: toastRect.opacity = 0 }

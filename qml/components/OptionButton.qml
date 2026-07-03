@@ -93,6 +93,7 @@ Rectangle {
         color: root.selectedCorrect
                ? (theme ? theme.success : "#8CD879")
                : (theme ? theme.danger : "#FF7A7A")
+        font.family: theme ? theme.fontFamily : "sans-serif"
         font.pixelSize: 13
         font.bold: true
 

@@ -1,7 +1,10 @@
 import QtQuick 2.12
 
 // 深色高对比主题。集中管理配色与字体，由 main.qml 注入各页面。
-QtObject {
+Item {
+    id: root
+    visible: false
+
     // 背景层次
     readonly property color bg:            "#0B0F14"
     readonly property color bgAlt:         "#101923"
@@ -30,8 +33,13 @@ QtObject {
     readonly property color warning:       "#F0B45A"
     readonly property color warningSoft:   "#3A2C18"
 
-    // 中文字体（取宿主全局字体，回退到无衬线）
-    readonly property string fontFamily:
-        (typeof qmlGlobal !== "undefined" && qmlGlobal.fontFamilyZhCn)
-            ? qmlGlobal.fontFamilyZhCn : "sans-serif"
+    // 全局字体。只需把 qml/ 下的 ttf 文件名填到这里；加载失败时回退到微软雅黑。
+    readonly property string fontFileName: "LXGWWenKai-Regular.ttf"
+    readonly property string fallbackFontFamily: "Microsoft YaHei"
+    readonly property string fontFamily: fontLoader.name !== "" ? fontLoader.name : fallbackFontFamily
+
+    FontLoader {
+        id: fontLoader
+        source: root.fontFileName !== "" ? Qt.resolvedUrl(root.fontFileName) : ""
+    }
 }
