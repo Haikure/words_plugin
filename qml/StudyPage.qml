@@ -104,7 +104,7 @@ Flickable {
             PillButton {
                 theme: root.theme
                 width: (parent.width - 6) / 2
-                text: "不认识"
+                text: card.needsReview ? "忘记了" : "不认识"
                 selected: root.selectedRating === 1
                 enabled: root.selectedRating < 0
                 onClicked: root.chooseRating(1)
@@ -113,7 +113,7 @@ Flickable {
             PillButton {
                 theme: root.theme
                 width: (parent.width - 6) / 2
-                text: "认识"
+                text: card.needsReview ? "记得" : "认识"
                 selected: root.selectedRating === 0
                 enabled: root.selectedRating < 0
                 onClicked: root.chooseRating(0)

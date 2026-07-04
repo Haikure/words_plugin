@@ -71,8 +71,14 @@ public:
 
     // 随机抽取 count 个中文释义（排除 excludeId），作为复习干扰项。
     QStringList randomTranslations(int count, int excludeId);
+    // 优先抽取与 correctWord 同词根/同词缀词条的中文释义，不足时回退随机释义。
+    QStringList difficultTranslations(int count, int excludeId,
+                                      const QString& correctWord,
+                                      const QString& correctTranslation);
     // 随机抽取 count 个单词（排除 excludeId），作为复习干扰项。
     QStringList randomWords(int count, int excludeId);
+    // 优先抽取与 correctWord 同词根/同词缀的英文干扰项，不足时回退随机词。
+    QStringList difficultWords(int count, int excludeId, const QString& correctWord);
 
 private:
     QString          m_dictsDir;

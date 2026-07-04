@@ -43,6 +43,8 @@ class WordController : public QObject {
 
     // —— 设置 ——
     Q_PROPERTY(int batchSize READ batchSize WRITE setBatchSize NOTIFY batchSizeChanged)
+    Q_PROPERTY(int reviewMode READ reviewMode WRITE setReviewMode NOTIFY reviewModeChanged)
+    Q_PROPERTY(bool highDifficulty READ highDifficulty WRITE setHighDifficulty NOTIFY highDifficultyChanged)
 
     // —— 中断恢复 ——
     Q_PROPERTY(bool hasUnfinishedSession READ hasUnfinishedSession NOTIFY unfinishedChanged)
@@ -68,6 +70,8 @@ public:
     int     streakDays() const;
     int     dueCount() const;
     int     batchSize() const { return m_batchSize; }
+    int     reviewMode() const { return m_reviewMode; }
+    bool    highDifficulty() const { return m_highDifficulty; }
     bool    hasUnfinishedSession() const { return m_hasUnfinished; }
     QVariantMap currentCard() const { return m_currentCard; }
     QVariantMap currentQuestion() const { return m_currentQuestion; }
@@ -79,10 +83,12 @@ public:
 
     // —— 设置 ——
     Q_INVOKABLE void setBatchSize(int n);
+    Q_INVOKABLE void setReviewMode(int mode);
+    Q_INVOKABLE void setHighDifficulty(bool enabled);
 
     // —— 学习 ——
     Q_INVOKABLE bool startStudy();          // 无新词可学返回 false
-    Q_INVOKABLE void rateStudy(int rating); // 0认识 / 1不认识
+    Q_INVOKABLE void rateStudy(int rating); // 0记得 / 1忘记了
 
     // —— 复习 ——
     Q_INVOKABLE bool startReview();         // 无到期/首次复习词返回 false
@@ -101,6 +107,8 @@ signals:
     void dictChanged();
     void statsChanged();
     void batchSizeChanged();
+    void reviewModeChanged();
+    void highDifficultyChanged();
     void unfinishedChanged();
     void currentCardChanged();
     void currentQuestionChanged();
@@ -129,6 +137,8 @@ private:
 
     int  m_sessionMode = 0;
     int  m_batchSize = 10;
+    int  m_reviewMode = 0;
+    bool m_highDifficulty = false;
     bool m_hasUnfinished = false;
 
     QVariantMap m_currentCard;

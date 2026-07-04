@@ -18,7 +18,13 @@ static qint64 stageIntervalSecs(int stage) {
 // 防止极端情况下重现项无限堆积
 static const int kMaxQueueLen = 512;
 
-void ReviewSession::start(const QVector<int>& words) {
+static bool pickDirection(ReviewDirectionMode mode) {
+    if (mode == ReviewDirectionMode::EnToCn) return true;
+    if (mode == ReviewDirectionMode::CnToEn) return false;
+    return QRandomGenerator::global()->bounded(2) == 0;
+}
+
+void ReviewSession::start(const QVector<int>& words, ReviewDirectionMode mode) {
     m_queue.clear();
     m_sessionError.clear();
     m_dir.clear();
@@ -27,10 +33,9 @@ void ReviewSession::start(const QVector<int>& words) {
     m_answeredCount = 0;
     m_correctCount = 0;
 
-    auto* rng = QRandomGenerator::global();
     for (int id : words) {
         m_queue.append({id, true});
-        m_dir[id] = (rng->bounded(2) == 0); // 随机方向
+        m_dir[id] = pickDirection(mode);
     }
 }
 
@@ -87,6 +92,10 @@ bool ReviewSession::fromJson(const QString& json) {
     const QJsonObject dirs = root[QStringLiteral("dirs")].toObject();
     for (auto it = dirs.constBegin(); it != dirs.constEnd(); ++it)
         m_dir[it.key().toInt()] = it.value().toBool();
+    for (const Item& it : m_queue) {
+        if (it.wordId > 0 && !m_dir.contains(it.wordId))
+            m_dir[it.wordId] = pickDirection(ReviewDirectionMode::Mixed);
+    }
 
     if (m_queue.isEmpty()) return false;
     if (m_cursor < 0 || m_cursor > m_queue.size()) return false;

@@ -65,6 +65,21 @@ static qint64 dayStartSecs(const QDate& day) {
     return QDateTime(day, QTime(0, 0)).toSecsSinceEpoch();
 }
 
+static int normalizeReviewMode(int mode) {
+    return (mode >= 0 && mode <= 2) ? mode : 0;
+}
+
+static ReviewDirectionMode reviewDirectionMode(int mode) {
+    switch (normalizeReviewMode(mode)) {
+    case 1:
+        return ReviewDirectionMode::CnToEn;
+    case 2:
+        return ReviewDirectionMode::EnToCn;
+    default:
+        return ReviewDirectionMode::Mixed;
+    }
+}
+
 // ----------------------------- 初始化 -----------------------------
 
 void WordController::setBaseDir(const QString& dir) {
@@ -77,6 +92,8 @@ void WordController::setBaseDir(const QString& dir) {
     m_dict.scan(m_dictsDir);
 
     m_batchSize = m_user.getSettingInt(QStringLiteral("batch_size"), 10);
+    m_reviewMode = normalizeReviewMode(m_user.getSettingInt(QStringLiteral("review_mode"), 0));
+    m_highDifficulty = m_user.getSettingInt(QStringLiteral("high_difficulty"), 0) != 0;
 
     QString cur = m_user.getSetting(QStringLiteral("current_dict"));
     if (cur.isEmpty() && !m_dict.dicts().isEmpty())
@@ -98,6 +115,8 @@ void WordController::setBaseDir(const QString& dir) {
     emit dictChanged();
     emit statsChanged();
     emit batchSizeChanged();
+    emit reviewModeChanged();
+    emit highDifficultyChanged();
     emit unfinishedChanged();
 }
 
@@ -167,6 +186,21 @@ void WordController::setBatchSize(int n) {
     m_batchSize = n;
     m_user.setSettingInt(QStringLiteral("batch_size"), n);
     emit batchSizeChanged();
+}
+
+void WordController::setReviewMode(int mode) {
+    mode = normalizeReviewMode(mode);
+    if (m_reviewMode == mode) return;
+    m_reviewMode = mode;
+    m_user.setSettingInt(QStringLiteral("review_mode"), mode);
+    emit reviewModeChanged();
+}
+
+void WordController::setHighDifficulty(bool enabled) {
+    if (m_highDifficulty == enabled) return;
+    m_highDifficulty = enabled;
+    m_user.setSettingInt(QStringLiteral("high_difficulty"), enabled ? 1 : 0);
+    emit highDifficultyChanged();
 }
 
 // ----------------------------- 学习 -----------------------------
@@ -247,7 +281,7 @@ void WordController::finishStudyEnterConsolidate() {
     QVector<int> round = m_study.roundNewWords();
     if (round.isEmpty()) { discardBrokenSession(); return; }
 
-    m_review.start(round);
+    m_review.start(round, reviewDirectionMode(m_reviewMode));
     setSessionMode(ModeConsolidate);
     refreshReviewQuestion();
     persistSession();
@@ -277,7 +311,7 @@ bool WordController::startReview() {
     shuffle(pool);
     if (pool.size() > m_batchSize) pool.resize(m_batchSize);
 
-    m_review.start(pool);
+    m_review.start(pool, reviewDirectionMode(m_reviewMode));
     setSessionMode(randomReview ? ModeRandomReview : ModeReview);
     refreshReviewQuestion();
     persistSession();
@@ -298,12 +332,22 @@ void WordController::refreshReviewQuestion() {
         prompt = e.word;
         promptPhonetic = e.phonetic;
         correct = norm(e.translation);
-        options = uniqueOptions(m_dict.randomTranslations(8, id), correct, 3);
+        QStringList rawOptions = m_highDifficulty
+            ? m_dict.difficultTranslations(8, id, e.word, correct)
+            : m_dict.randomTranslations(8, id);
+        options = uniqueOptions(rawOptions, correct, 3);
+        if (options.size() < 3)
+            options = uniqueOptions(options + m_dict.randomTranslations(8, id), correct, 3);
     } else {
         // 看中文选英文
         prompt = norm(e.translation);
         correct = e.word;
-        options = uniqueOptions(m_dict.randomWords(8, id), correct, 3);
+        QStringList rawOptions = m_highDifficulty
+            ? m_dict.difficultWords(8, id, correct)
+            : m_dict.randomWords(8, id);
+        options = uniqueOptions(rawOptions, correct, 3);
+        if (options.size() < 3)
+            options = uniqueOptions(options + m_dict.randomWords(8, id), correct, 3);
     }
 
     // 正确项插入随机位置
@@ -474,6 +518,7 @@ void WordController::resumeSession() {
     m_hasUnfinished = false;
     emit dictChanged();
     emit batchSizeChanged();
+    emit highDifficultyChanged();
     emit unfinishedChanged();
 }
 

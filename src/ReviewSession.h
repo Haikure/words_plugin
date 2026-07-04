@@ -4,7 +4,7 @@
 // ReviewSession —— 复习会话（四选一），同时用于「轮次巩固」与「独立复习」
 //
 // 行为：
-//   * 计数项 = 本次要复习的词；看英文选中文 / 看中文选英文 随机混合
+//   * 计数项 = 本次要复习的词；题目方向由偏好设置决定，可随机混合
 //   * 答错 → 在当前会话内做延迟随机纠错重现（不计数）
 //   * 仅计数题写回长期复习状态：艾宾浩斯 1/2/4/7/15/30 天，
 //     连对≥3 清除高错标记，答错回退间隔
@@ -21,12 +21,19 @@
 
 namespace word {
 
+enum class ReviewDirectionMode {
+    Mixed = 0,
+    CnToEn = 1,
+    EnToCn = 2,
+};
+
 class ReviewSession {
 public:
     ReviewSession() = default;
 
     // 开始复习：words 为参与复习的词（计数项），按给定顺序。
-    void start(const QVector<int>& words);
+    void start(const QVector<int>& words,
+               ReviewDirectionMode mode = ReviewDirectionMode::Mixed);
 
     QString toJson() const;
     bool    fromJson(const QString& json);

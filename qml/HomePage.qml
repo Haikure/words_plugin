@@ -13,6 +13,11 @@ Flickable {
     signal requestExit()
 
     readonly property var batchOptions: [5, 10, 15, 20, 25, 30]
+    readonly property var reviewModeOptions: [
+        { "value": 0, "label": "混合" },
+        { "value": 1, "label": "中选英" },
+        { "value": 2, "label": "英选中" }
+    ]
     readonly property int learnedCount: wordController ? wordController.learnedCount : 0
     readonly property int totalWords: wordController ? wordController.totalWords : 0
     readonly property int dueCount: wordController ? wordController.dueCount : 0
@@ -209,6 +214,150 @@ Flickable {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: if (wordController) wordController.setBatchSize(modelData)
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            id: prefsCard
+            width: parent.width
+            height: 88
+            radius: 7
+            color: theme ? theme.surface : "#141A22"
+            border.width: 1
+            border.color: theme ? theme.border : "#2B3646"
+            clip: true
+
+            Rectangle {
+                width: 74
+                height: parent.height + 10
+                anchors.right: parent.right
+                anchors.top: parent.top
+                color: theme ? theme.accentAltSoft : "#3A2C18"
+                opacity: 0.38
+                rotation: -9
+            }
+
+            Column {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 5
+
+                Row {
+                    width: parent.width
+                    height: 13
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "偏好设置"
+                        color: theme ? theme.accentAlt : "#F0B45A"
+                        font.family: theme ? theme.fontFamily : "sans-serif"
+                        font.pixelSize: 10
+                        font.bold: true
+                    }
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "选择模式"
+                        color: theme ? theme.textSecondary : "#A9B7C3"
+                        font.family: theme ? theme.fontFamily : "sans-serif"
+                        font.pixelSize: 10
+                    }
+                }
+
+                Row {
+                    width: parent.width
+                    spacing: 4
+
+                    Repeater {
+                        model: root.reviewModeOptions
+                        delegate: Rectangle {
+                            id: modeChip
+                            property bool sel: wordController && wordController.reviewMode === modelData.value
+                            width: (parent.width - 8) / 3
+                            height: 24
+                            radius: 6
+                            color: sel ? (theme ? theme.accentAlt : "#F0B45A")
+                                       : (theme ? theme.surfaceRaised : "#1B2430")
+                            border.width: sel ? 0 : 1
+                            border.color: theme ? theme.border : "#2B3646"
+                            scale: modeArea.pressed ? 0.94 : (modeArea.containsMouse ? 1.04 : 1.0)
+
+                            Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                            Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                color: parent.sel ? "#100B02" : (theme ? theme.textPrimary : "#F4F7F8")
+                                font.family: theme ? theme.fontFamily : "sans-serif"
+                                font.pixelSize: 11
+                                font.bold: parent.sel
+                            }
+
+                            MouseArea {
+                                id: modeArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: if (wordController) wordController.setReviewMode(modelData.value)
+                            }
+                        }
+                    }
+                }
+
+                Row {
+                    width: parent.width
+                    height: 24
+                    spacing: 6
+
+                    Text {
+                        width: parent.width - difficultySwitch.width - 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "题目难度"
+                        color: theme ? theme.textSecondary : "#A9B7C3"
+                        font.family: theme ? theme.fontFamily : "sans-serif"
+                        font.pixelSize: 10
+                    }
+
+                    Rectangle {
+                        id: difficultySwitch
+                        property bool hard: wordController && wordController.highDifficulty
+                        width: 74
+                        height: 24
+                        radius: 6
+                        color: hard ? (theme ? theme.dangerSoft : "#3B2226")
+                                    : (theme ? theme.surfaceRaised : "#1B2430")
+                        border.width: 1
+                        border.color: hard ? (theme ? theme.danger : "#FF7A7A")
+                                           : (theme ? theme.border : "#2B3646")
+                        scale: difficultyArea.pressed ? 0.94 : (difficultyArea.containsMouse ? 1.04 : 1.0)
+
+                        Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Behavior on border.color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: parent.hard ? "高难" : "普通"
+                            color: parent.hard
+                                   ? (theme ? theme.danger : "#FF7A7A")
+                                   : (theme ? theme.textPrimary : "#F4F7F8")
+                            font.family: theme ? theme.fontFamily : "sans-serif"
+                            font.pixelSize: 11
+                            font.bold: parent.hard
+                        }
+
+                        MouseArea {
+                            id: difficultyArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: if (wordController) wordController.setHighDifficulty(!wordController.highDifficulty)
+                        }
                     }
                 }
             }

@@ -6,8 +6,8 @@
 // 行为（对应 need.md "学习功能"）：
 //   * 本轮从未学新词中选 batchSize 个（计数项）
 //   * 学习阶段只走本轮新词，不再随机穿插旧词
-//   * 每张卡支持 认识 / 不认识 二选一判断
-//   * 不认识 会在稍后再次出现，形成学习阶段延迟强化
+//   * 每张卡支持 记得 / 忘记了 二选一判断
+//   * 忘记了 会在稍后再次出现，形成学习阶段延迟强化
 //   * 全部展示完毕 → isFinished()；roundNewWords() 返回本轮新词供轮次巩固
 //
 // 可序列化为 JSON 以支持中断恢复。
@@ -61,6 +61,7 @@ private:
     };
 
     void insertDelayedReinforce(int wordId, int minGap, int maxGap, int minSameWordGap, int level);
+    bool hasPendingReinforceForWord(int wordId) const;
     bool canInsertReinforceAt(int wordId, int pos, int minSameWordGap, bool avoidReinforceNeighbor) const;
 
     QVector<Item> m_queue;

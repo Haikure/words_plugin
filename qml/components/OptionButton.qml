@@ -31,18 +31,13 @@ Rectangle {
 
     color: {
         if (!theme) return "#1B2430";
-        if (root.selectedCorrect) return theme.successSoft;
-        if (root.wrong) return theme.dangerSoft;
+        if (root.selectedCorrect) return "#138A45";
+        if (root.wrong) return "#9F2F2F";
         if (root.dimmed) return theme.surface;
         return theme.surfaceRaised;
     }
-    border.width: (root.selectedCorrect || root.wrong) ? 2 : 1
-    border.color: {
-        if (!theme) return "#2B3646";
-        if (root.selectedCorrect) return theme.success;
-        if (root.wrong) return theme.danger;
-        return theme.border;
-    }
+    border.width: 1
+    border.color: theme ? theme.border : "#2B3646"
     scale: pressArea.pressed ? 0.985 : (pressArea.containsMouse && root.enabled ? 1.01 : 1.0)
 
     Behavior on color { ColorAnimation { duration: 280; easing.type: Easing.OutCubic } }
@@ -54,26 +49,20 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: 4
-        color: {
-            if (root.selectedCorrect) return theme ? theme.success : "#8CD879";
-            if (root.wrong) return theme ? theme.danger : "#FF7A7A";
-            return theme ? theme.accent : "#78D6C6";
-        }
-        opacity: (root.selectedCorrect || root.wrong) ? 1 : 0.38
+        color: theme ? theme.accent : "#78D6C6"
+        opacity: (root.selectedCorrect || root.wrong) ? 0 : (root.dimmed ? 0.18 : 0.38)
     }
 
     Text {
         id: optionText
         anchors.left: parent.left
-        anchors.right: markIcon.left
+        anchors.right: parent.right
         anchors.leftMargin: 10
-        anchors.rightMargin: 4
+        anchors.rightMargin: 10
         anchors.verticalCenter: parent.verticalCenter
         text: root.text
         color: {
             if (!theme) return "#F4F7F8";
-            if (root.selectedCorrect) return theme.success;
-            if (root.wrong) return theme.danger;
             if (root.dimmed) return theme.textFaint;
             return theme.textPrimary;
         }
@@ -89,10 +78,9 @@ Rectangle {
         anchors.right: parent.right
         anchors.rightMargin: 10
         anchors.verticalCenter: parent.verticalCenter
-        text: root.selectedCorrect ? "✓" : (root.wrong ? "×" : "")
-        color: root.selectedCorrect
-               ? (theme ? theme.success : "#8CD879")
-               : (theme ? theme.danger : "#FF7A7A")
+        visible: false
+        text: ""
+        color: theme ? theme.textPrimary : "#F4F7F8"
         font.family: theme ? theme.fontFamily : "sans-serif"
         font.pixelSize: 13
         font.bold: true

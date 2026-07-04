@@ -116,7 +116,6 @@ void StudySession::insertDelayedReinforce(int wordId, int minGap, int maxGap, in
     if (m_queue.size() >= kMaxStudyQueueLen) return;
 
     const int afterCurrent = m_cursor + 1;
-    if (afterCurrent >= m_queue.size()) return;
 
     if (maxGap < minGap) maxGap = minGap;
     const int lower = qMin(afterCurrent + minGap, m_queue.size());
@@ -143,9 +142,19 @@ void StudySession::insertDelayedReinforce(int wordId, int minGap, int maxGap, in
         pos = m_queue.size();
     }
 
+    if (pos < 0 && !hasPendingReinforceForWord(wordId))
+        pos = m_queue.size();
     if (pos < 0) return;
     m_queue.insert(pos, {wordId, false, level});
     ++m_pendingReinforce;
+}
+
+bool StudySession::hasPendingReinforceForWord(int wordId) const {
+    for (int i = m_cursor + 1; i < m_queue.size(); ++i) {
+        if (m_queue[i].wordId == wordId && !m_queue[i].counted)
+            return true;
+    }
+    return false;
 }
 
 bool StudySession::canInsertReinforceAt(int wordId, int pos, int minSameWordGap, bool avoidReinforceNeighbor) const {
