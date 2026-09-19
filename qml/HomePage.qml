@@ -10,6 +10,7 @@ Flickable {
     signal requestStudy()
     signal requestReview()
     signal requestDictSelect()
+    signal requestErrorBook()
     signal requestExit()
 
     readonly property var batchOptions: [5, 10, 15, 20, 25, 30]
@@ -21,6 +22,7 @@ Flickable {
     readonly property int learnedCount: wordController ? wordController.learnedCount : 0
     readonly property int totalWords: wordController ? wordController.totalWords : 0
     readonly property int dueCount: wordController ? wordController.dueCount : 0
+    readonly property int errorWords: wordController ? wordController.errorWordCount : 0
     readonly property real dictProgress: totalWords > 0 ? learnedCount / totalWords : 0
 
     contentWidth: width
@@ -155,6 +157,60 @@ Flickable {
                 text: root.dueCount > 0 ? "开始复习"
                       : (root.learnedCount > 0 ? "随机复习" : "开始复习")
                 onClicked: root.requestReview()
+            }
+        }
+
+        // 错词本入口
+        Rectangle {
+            id: errorBookCard
+            width: parent.width
+            height: 34
+            radius: 7
+            color: theme ? theme.surface : "#141A22"
+            border.width: 1
+            border.color: theme ? theme.border : "#2B3646"
+            clip: true
+            scale: errorArea.pressed ? 0.985 : (errorArea.containsMouse ? 1.01 : 1.0)
+            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 4
+                radius: 2
+                color: theme ? theme.danger : "#FF7A7A"
+            }
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                text: "错词本"
+                color: theme ? theme.textPrimary : "#F4F7F8"
+                font.family: theme ? theme.fontFamily : "sans-serif"
+                font.pixelSize: 12
+                font.bold: true
+            }
+
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.errorWords > 0 ? root.errorWords + " 个待攻克 ›"
+                                          : "复习答错的词会收进来 ›"
+                color: root.errorWords > 0
+                       ? (theme ? theme.danger : "#FF7A7A")
+                       : (theme ? theme.textFaint : "#647482")
+                font.family: theme ? theme.fontFamily : "sans-serif"
+                font.pixelSize: 10
+            }
+
+            MouseArea {
+                id: errorArea
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: root.requestErrorBook()
             }
         }
 

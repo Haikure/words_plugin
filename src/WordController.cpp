@@ -12,7 +12,10 @@
 namespace word {
 
 // 会话模式常量
-enum Mode { ModeIdle = 0, ModeStudy = 1, ModeReview = 2, ModeConsolidate = 3, ModeSummary = 4, ModeRandomReview = 5 };
+enum Mode {
+    ModeIdle = 0, ModeStudy = 1, ModeReview = 2, ModeConsolidate = 3,
+    ModeSummary = 4, ModeRandomReview = 5, ModeErrorReview = 6
+};
 
 // 把 ECDICT 字面 "\n" 转为真换行
 static QString norm(const QString& s) {
@@ -67,6 +70,12 @@ static qint64 dayStartSecs(const QDate& day) {
 
 static int normalizeReviewMode(int mode) {
     return (mode >= 0 && mode <= 2) ? mode : 0;
+}
+
+// 复习类会话（复习/轮次巩固/随机复习/错词复习）共用答题与断点持久化逻辑。
+static bool isReviewLikeMode(int mode) {
+    return mode == ModeReview || mode == ModeConsolidate ||
+           mode == ModeRandomReview || mode == ModeErrorReview;
 }
 
 static ReviewDirectionMode reviewDirectionMode(int mode) {
@@ -139,6 +148,9 @@ int WordController::streakDays() const {
 int WordController::dueCount() const {
     return const_cast<UserDatabase&>(m_user).dueCount(m_dict.currentDictId(), nowSecs());
 }
+int WordController::errorWordCount() const {
+    return const_cast<UserDatabase&>(m_user).errorFlagCount(m_dict.currentDictId());
+}
 
 void WordController::setSessionMode(int mode) {
     if (m_sessionMode == mode) return;
@@ -162,6 +174,27 @@ QVariantList WordController::dictList() {
         m[QStringLiteral("progress")]     =
             info.wordCount > 0 ? double(learned) / info.wordCount : 0.0;
         m[QStringLiteral("current")]      = (info.dictId == curId);
+        list.append(m);
+    }
+    return list;
+}
+
+QVariantList WordController::errorWordList() {
+    QVariantList list;
+    if (!m_dict.isOpen()) return list;
+
+    const QString dictId = m_dict.currentDictId();
+    const QVector<int> ids = m_user.errorFlagIds(dictId);
+    for (int id : ids) {
+        const WordEntry e = m_dict.wordById(id);
+        const WordState st = m_user.wordState(dictId, id);
+        QVariantMap m;
+        m[QStringLiteral("id")]           = id;
+        m[QStringLiteral("word")]         = e.word;
+        m[QStringLiteral("phonetic")]     = e.phonetic;
+        m[QStringLiteral("translation")]  = norm(e.translation);
+        m[QStringLiteral("totalAttempts")] = st.totalAttempts;
+        m[QStringLiteral("totalCorrect")]  = st.totalCorrect;
         list.append(m);
     }
     return list;
@@ -318,6 +351,24 @@ bool WordController::startReview() {
     return true;
 }
 
+bool WordController::startErrorReview() {
+    if (!m_dict.isOpen()) return false;
+
+    // 错词专项复习：只取高错误标记的词，不受到期时间限制；
+    // 计入长期复习调度，连对 3 次后 error_flag 自动清除、移出错词本。
+    QVector<int> pool = m_user.errorFlagIds(m_dict.currentDictId());
+    if (pool.isEmpty()) return false;
+
+    shuffle(pool);
+    if (pool.size() > m_batchSize) pool.resize(m_batchSize);
+
+    m_review.start(pool, reviewDirectionMode(m_reviewMode));
+    setSessionMode(ModeErrorReview);
+    refreshReviewQuestion();
+    persistSession();
+    return true;
+}
+
 void WordController::refreshReviewQuestion() {
     const int id = m_review.currentWordId();
     if (id < 0) { finishReview(); return; }
@@ -366,18 +417,19 @@ void WordController::refreshReviewQuestion() {
     q[QStringLiteral("total")]          = m_review.totalCount();
     q[QStringLiteral("isConsolidate")]  = (m_sessionMode == ModeConsolidate);
     q[QStringLiteral("isRandomReview")] = (m_sessionMode == ModeRandomReview);
+    q[QStringLiteral("isErrorReview")]  = (m_sessionMode == ModeErrorReview);
     m_currentQuestion = q;
     emit currentQuestionChanged();
 }
 
 bool WordController::answerReview(int optionIndex) {
-    if (m_sessionMode != ModeReview && m_sessionMode != ModeConsolidate && m_sessionMode != ModeRandomReview)
-        return false;
+    if (!isReviewLikeMode(m_sessionMode)) return false;
 
     const int id = m_review.currentWordId();
     const bool correct = (optionIndex == m_lastCorrectIndex);
 
-    if (id > 0 && m_sessionMode == ModeReview) {
+    // 正式复习与错词复习都写入长期调度；巩固/随机复习只影响本次会话。
+    if (id > 0 && (m_sessionMode == ModeReview || m_sessionMode == ModeErrorReview)) {
         WordState st = m_user.wordState(m_dict.currentDictId(), id);
         if (m_review.currentIsCounted()) {
             ReviewSession::applyResult(st, correct, nowSecs());
@@ -394,8 +446,7 @@ bool WordController::answerReview(int optionIndex) {
 }
 
 void WordController::advanceReview() {
-    if (m_sessionMode != ModeReview && m_sessionMode != ModeConsolidate && m_sessionMode != ModeRandomReview)
-        return;
+    if (!isReviewLikeMode(m_sessionMode)) return;
     if (m_review.isFinished())
         finishReview();
     else
@@ -405,6 +456,7 @@ void WordController::advanceReview() {
 void WordController::finishReview() {
     const bool wasConsolidate = (m_sessionMode == ModeConsolidate);
     const bool wasRandomReview = (m_sessionMode == ModeRandomReview);
+    const bool wasErrorReview = (m_sessionMode == ModeErrorReview);
     const int total = m_review.totalCount();
     const int correct = m_review.correctCount();
     const int wrong = m_review.wrongCount();
@@ -417,8 +469,9 @@ void WordController::finishReview() {
     summary[QStringLiteral("kind")] = wasConsolidate ? QStringLiteral("study")
                                                      : QStringLiteral("review");
     summary[QStringLiteral("title")] = wasConsolidate ? QStringLiteral("本轮完成")
+                                      : (wasErrorReview ? QStringLiteral("错词复习完成")
                                       : (wasRandomReview ? QStringLiteral("随机复习完成")
-                                                         : QStringLiteral("复习完成"));
+                                                         : QStringLiteral("复习完成")));
     summary[QStringLiteral("total")] = total;
     summary[QStringLiteral("correct")] = correct;
     summary[QStringLiteral("wrong")] = wrong;
@@ -455,7 +508,7 @@ void WordController::persistSession() {
     snap.updatedAt = nowSecs();
     if (m_sessionMode == ModeStudy)
         snap.queueJson = m_study.toJson();
-    else if (m_sessionMode == ModeReview || m_sessionMode == ModeConsolidate || m_sessionMode == ModeRandomReview)
+    else if (isReviewLikeMode(m_sessionMode))
         snap.queueJson = m_review.toJson();
     else
         return;  // 空闲不写
@@ -498,7 +551,7 @@ void WordController::resumeSession() {
         }
         setSessionMode(ModeStudy);
         refreshStudyCard();
-    } else if (snap.mode == ModeReview || snap.mode == ModeConsolidate || snap.mode == ModeRandomReview) {
+    } else if (isReviewLikeMode(snap.mode)) {
         if (!m_review.fromJson(snap.queueJson)) {
             discardBrokenSession();
             return;

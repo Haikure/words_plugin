@@ -35,7 +35,7 @@ struct WordState {
 
 // 会话断点（session_state 单行）
 struct SessionSnapshot {
-    int     mode = 0;          // 0无 / 1学习 / 2复习 / 3轮次巩固 / 5随机复习
+    int     mode = 0;          // 0无 / 1学习 / 2复习 / 3轮次巩固 / 5随机复习 / 6错词复习
     QString dictId;
     QString queueJson;         // 队列与进度的 JSON
     int     cursor = 0;
@@ -71,10 +71,13 @@ public:
     QVector<int> reviewPoolIds(const QString& dictId, bool onlyDue, qint64 now);
     // 取已学习但尚未完成首次复习的词（优先用于承接上次学习后的复习）。
     QVector<int> pendingFirstReviewIds(const QString& dictId);
+    // 取高错误标记的已学词 id（错词本），最近复习过的在前。
+    QVector<int> errorFlagIds(const QString& dictId);
 
     int learnedCount(const QString& dictId);    // status>=1 的数量
     int reviewPoolCount(const QString& dictId); // status=2 的数量
     int dueCount(const QString& dictId, qint64 now); // status=2 且到期的数量
+    int errorFlagCount(const QString& dictId);  // 错词本词数（error_flag=1 且已学）
 
     // ---- 每日统计 / 打卡 ----
     void addTodayLearned(const QString& day, int delta);

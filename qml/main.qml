@@ -62,9 +62,11 @@ Rectangle {
         sourceComponent: {
             var m = wordController ? wordController.sessionMode : 0;
             if (m === 1) return studyComp;
-            if (m === 2 || m === 3 || m === 5) return reviewComp;
+            if (m === 2 || m === 3 || m === 5 || m === 6) return reviewComp;
             if (m === 4) return summaryComp;
-            return root.internalPage === "dictSelect" ? dictComp : homeComp;
+            if (root.internalPage === "dictSelect") return dictComp;
+            if (root.internalPage === "errorBook") return errorComp;
+            return homeComp;
         }
     }
 
@@ -81,6 +83,7 @@ Rectangle {
                     root.toast("暂无可复习的单词");
             }
             onRequestDictSelect: root.internalPage = "dictSelect"
+            onRequestErrorBook: root.internalPage = "errorBook"
             onRequestExit: root.exitPlugin()
         }
     }
@@ -89,6 +92,17 @@ Rectangle {
         DictSelectPage {
             theme: appTheme
             onBack: root.internalPage = "home"
+        }
+    }
+    Component {
+        id: errorComp
+        ErrorBookPage {
+            theme: appTheme
+            onBack: root.internalPage = "home"
+            onRequestErrorReview: {
+                if (wordController && !wordController.startErrorReview())
+                    root.toast("错词本里还没有词");
+            }
         }
     }
     Component {

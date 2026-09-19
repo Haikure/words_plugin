@@ -40,6 +40,7 @@ class WordController : public QObject {
     Q_PROPERTY(int todayReviewed READ todayReviewed NOTIFY statsChanged)
     Q_PROPERTY(int streakDays READ streakDays NOTIFY statsChanged)
     Q_PROPERTY(int dueCount READ dueCount NOTIFY statsChanged)
+    Q_PROPERTY(int errorWordCount READ errorWordCount NOTIFY statsChanged)
 
     // —— 设置 ——
     Q_PROPERTY(int batchSize READ batchSize WRITE setBatchSize NOTIFY batchSizeChanged)
@@ -69,6 +70,7 @@ public:
     int     todayReviewed() const;
     int     streakDays() const;
     int     dueCount() const;
+    int     errorWordCount() const;
     int     batchSize() const { return m_batchSize; }
     int     reviewMode() const { return m_reviewMode; }
     bool    highDifficulty() const { return m_highDifficulty; }
@@ -81,6 +83,9 @@ public:
     Q_INVOKABLE QVariantList dictList();
     Q_INVOKABLE bool selectDict(const QString& dictId);
 
+    // —— 错词本 ——
+    Q_INVOKABLE QVariantList errorWordList();  // 当前词库错词（含答题统计），供错词本页展示
+
     // —— 设置 ——
     Q_INVOKABLE void setBatchSize(int n);
     Q_INVOKABLE void setReviewMode(int mode);
@@ -92,6 +97,7 @@ public:
 
     // —— 复习 ——
     Q_INVOKABLE bool startReview();         // 无到期/首次复习词返回 false
+    Q_INVOKABLE bool startErrorReview();    // 错词专项复习；错词本为空返回 false
     Q_INVOKABLE bool answerReview(int optionIndex); // 返回是否答对（不前进题目）
     Q_INVOKABLE int  lastCorrectIndex() const { return m_lastCorrectIndex; }
     Q_INVOKABLE void advanceReview();       // 反馈展示后调用：前进到下一题/结束

@@ -172,6 +172,19 @@ QVector<int> UserDatabase::pendingFirstReviewIds(const QString& dictId) {
     return ids;
 }
 
+QVector<int> UserDatabase::errorFlagIds(const QString& dictId) {
+    // error_flag 只在复习答错时置位（此时 last_review_at 必已写入），
+    // 按 last_review_at 倒序即「最近答错的排最前」。
+    QVector<int> ids;
+    Stmt stmt = m_db.prepare(QStringLiteral(
+        "SELECT word_id FROM word_state "
+        "WHERE dict_id=? AND error_flag=1 AND status>=1 "
+        "ORDER BY last_review_at DESC"));
+    stmt.bind(1, dictId);
+    while (stmt.step()) ids.append(stmt.columnInt(0));
+    return ids;
+}
+
 int UserDatabase::learnedCount(const QString& dictId) {
     Stmt stmt = m_db.prepare(QStringLiteral(
         "SELECT count(*) FROM word_state WHERE dict_id=? AND status>=1"));
@@ -191,6 +204,13 @@ int UserDatabase::dueCount(const QString& dictId, qint64 now) {
         "SELECT count(*) FROM word_state WHERE dict_id=? AND status=2 AND due_at<=?"));
     stmt.bind(1, dictId);
     stmt.bind(2, now);
+    return stmt.step() ? stmt.columnInt(0) : 0;
+}
+
+int UserDatabase::errorFlagCount(const QString& dictId) {
+    Stmt stmt = m_db.prepare(QStringLiteral(
+        "SELECT count(*) FROM word_state WHERE dict_id=? AND error_flag=1 AND status>=1"));
+    stmt.bind(1, dictId);
     return stmt.step() ? stmt.columnInt(0) : 0;
 }
 

@@ -7,8 +7,9 @@
 ## 功能
 
 - **多词库**：一库一文件，启动自动扫描 `dicts/`，可随时切换；各词库进度互不干扰
-- **学习**：按当代词频优先选新词，过程中随机穿插已学词复习， 每轮学完自动进入「轮次巩固」
+- **学习**：从未学词中随机抽取本轮新词，答错的词在本轮内自动间隔重现，每轮学完自动进入「轮次巩固」
 - **复习**：可在偏好设置中选择看中文选英文、看英文选中文或混合模式，四选一回答
+- **错词本**：复习答错的词自动收入错词本，可单独查看并专项复习（计入复习调度）；连对 3 次自动移出
 - **高难度**：开启后，复习/巩固优先使用同词根或同词缀词条生成干扰项，不足时自动回退普通随机选项
 - **智能复习**：初次答错连续再现 2 次；连对 ≥3 次清除高错标记；结合艾宾浩斯间隔 1 / 2 / 4 / 7 / 15 / 30 天调度
 - **断点恢复**：随时退出，重进弹「上次有未完成的学习，是否继续？」（继续 / 重新开始）
@@ -40,7 +41,7 @@ words_plugin/
 ├── qml/                   # UI界面
 │   ├── main.qml           # 根页面 + 路由 + 续学弹窗
 │   ├── Theme.qml          # 配色/字体
-│   ├── HomePage.qml / DictSelectPage.qml / StudyPage.qml / ReviewPage.qml / SummaryPage.qml
+│   ├── HomePage.qml / DictSelectPage.qml / StudyPage.qml / ReviewPage.qml / SummaryPage.qml / ErrorBookPage.qml
 │   └── components/        # ProgressBar / StatTile / OptionButton / WordCard / PillButton
 └── dicts/                 # 词库（内含预设词库）
     ├── gaokao.db          # 高考词汇 3677
